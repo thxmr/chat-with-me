@@ -1,0 +1,15 @@
+html, body, #root{
+    height: 100%;
+}
+
+html, body, #root, label, p, button, textarea{
+    color: white !important;
+}
+
+.uk-button:disabled{
+    opacity: 0.5;
+}
+
+.uk-button{
+    color: white !important;
+}

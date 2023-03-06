@@ -16,18 +16,53 @@ function Chat({ socket }){
     const [ conversation, setConversation ] = useState('');
     const [ pseudo, setPseudo ] = useState('');
     const [ loaded, setLoaded ] = useState(false);
-    const [ isWriting, setIsWriting] = useState([]);
-    const [ users, setUsers] = useState([]);
+    const [ isWriting, setIsWriting ] = useState([]);
+    const [ users, setUsers ] = useState([]);
+    const [ message, setMessage ] = useState('');
 
     const getConversation = async () => {
-        const conv = document.querySelector('#conversationContainer');
+        const conv = document.getElementById('conversationContainer');
         await fetch(process.env.REACT_APP_PROXY+'/api/getConversation/')
         .then((res) => res.json())  
         .then((res) => {
             if(res.conversation){
                 setConversation(res.conversation)
+                conv.innerHTML = ''                             //reseting the content of the div
+                conversation.split('-----\n').forEach((elem) => {       //parsing every message sent with the separator set in sendMessage api
+                    let message = elem
+                    message = message.split('\n')
+                    message.pop()
+
+                    if(message?.length > 0) {           //some message are empty for some reason, so we need to check
+                        let msgBubble = document.createElement('div');
+                        msgBubble.className = 'uk-flex uk-flex-column uk-position-relative uk-width-1-2 uk-border-rounded uk-padding-small'
+                        if(message[0] === pseudo+':') {     //if the bubble is a message the current user sent
+                            msgBubble.style.marginLeft = 'auto' 
+                            msgBubble.style.backgroundColor = 'green'
+                        }else{
+                            const msgPseudo = document.createElement('span');
+                            msgPseudo.innerText = message[0]
+                            conv.appendChild(msgPseudo)
+                            msgBubble.style.marginRight = 'auto'
+                            msgBubble.style.backgroundColor = 'blue'
+                        } 
+                        message.shift() //remove the pseudo from message since we aleady treated it
+                        let msg = document.createElement('span');
+                        const space = document.createElement('br')
+                        message.map((msgLine) => {
+                            if(msgLine === ""){
+                                msg.appendChild(space)
+                            }else{
+                                msg.innerHTML+=document.createElement('span').innerText = msgLine
+                            }
+                        })
+                        msgBubble.appendChild(msg)              //add the message to the bubble
+                        conv.appendChild(msgBubble)             //add the bubble to the conversation
+                        conv.appendChild(space)                 //add a white space after the bubble
+                    }
+
+                })
                 //To set the scrollong position to the bottom by default. Not handled by default because the container is a flex container.
-                conv.innerText = conversation
                 conv.scrollTop = conv.scrollHeight
             }
         })
@@ -47,33 +82,33 @@ function Chat({ socket }){
         const textArea = document.querySelector('textarea');
         await fetch(process.env.REACT_APP_PROXY+'/api/sendMessage/?' + new URLSearchParams({message: textArea.value, sender: pseudo}))
         socket.emit('message', {
-            text: textArea.value,
+            text: message,
             name: pseudo,
             id: `${socket.id}${Math.random()}`,
             socketID: socket.id,
         });
         textArea.value = ''
+        setMessage('')
         isTextAreaEmpty()
     }
     
     const isTextAreaEmpty = () => {
         const textArea = document.querySelector('textarea');
-        const button = document.querySelector('button');
         if(textArea.value === '')
-            {
-                button.setAttribute('disabled','')
-                socket.emit('isnotWriting', {
-                    pseudo: pseudo,
-                    socketID: socket.id,
-                })
-            }else{
-                button.removeAttribute('disabled')
-                button.addEventListener('click',sendMessage)
-                socket.emit('isWriting', {
-                    pseudo: pseudo,
-                    socketID: socket.id
-                })
-            }
+        {
+            setMessage('')
+            socket.emit('isnotWriting', {
+                pseudo: pseudo,
+                socketID: socket.id,
+            })
+        }else{
+            setMessage(textArea.value)
+            socket.emit('isWriting', {
+                pseudo: pseudo,
+                socketID: socket.id
+            })
+        }
+        return textArea.value === ''
     }
 
     const generateTypingMessage = () => {
@@ -86,7 +121,7 @@ function Chat({ socket }){
             typingMessage = tempIsWriting[0].pseudo
             tempIsWriting = tempIsWriting.slice(0,usersDisplayable)             //slice the array to keep the exact number of user displayable
             for(let i=1;i<tempIsWriting.length;i++){
-                tempIsWriting.length - i == 2                                   // if there is at least 2 others players to display after this one
+                tempIsWriting.length - i === 2                                   // if there is at least 2 others players to display after this one
                     ?
                         typingMessage += ', ' + tempIsWriting[i].pseudo
                     :
@@ -124,7 +159,7 @@ function Chat({ socket }){
         getUsers()
         getConversation()
 
-        if(users && conversation){
+        if(users && conversation !== undefined){
             setLoaded(true)
         }
 
@@ -149,8 +184,8 @@ function Chat({ socket }){
             </div>
             <div className='uk-width-1-3' style={{minWidth: '300px'}}>
                 <p>Logged as : {pseudo}</p>
-                <div id='conversation' style={conversationStyle} className='uk-flex uk-flex-column uk-width-1-1 uk-height-large'>
-                    <div id='conversationContainer' style={conversationContainerStyle} className='uk-flex'/>
+                <div id='conversation' style={conversationStyle} className='uk-flex uk-flex-column uk-flex-right uk-width-1-1 uk-height-large'>
+                    <div id='conversationContainer' style={conversationContainerStyle}/>
                     {
                         !loaded && <div className='uk-flex uk-flex-center uk-flex-middle uk-height-1-1'><span uk-spinner="ratio: 4.5"/></div>  //display a loading spinner inside a container
                     }    
@@ -168,7 +203,13 @@ function Chat({ socket }){
                     <label htmlFor='message'>Message</label>
                     <textarea name='message' onChange={isTextAreaEmpty} className='uk-width-1-1 uk-background-secondary' style={{height: '150px', resize: 'none'}}/>
                 </div>
-                <button className='uk-button uk-button-default' disabled>Send</button>
+                {
+                    message === '' 
+                        ?
+                            <button className='uk-button uk-button-default' disabled>Send</button>
+                        :
+                            <button className='uk-button uk-button-default' onClick={sendMessage}>Send</button>
+                }   
             </div>
         </div>
     )

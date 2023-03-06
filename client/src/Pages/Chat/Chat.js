@@ -16,8 +16,9 @@ function Chat({ socket }){
     const [ conversation, setConversation ] = useState('');
     const [ pseudo, setPseudo ] = useState('');
     const [ loaded, setLoaded ] = useState(false);
-    const [ isWriting, setIsWriting] = useState([]);
-    const [ users, setUsers] = useState([]);
+    const [ isWriting, setIsWriting ] = useState([]);
+    const [ users, setUsers ] = useState([]);
+    const [ message, setMessage ] = useState('');
 
     const getConversation = async () => {
         const conv = document.querySelector('#conversationContainer');
@@ -47,12 +48,13 @@ function Chat({ socket }){
         const textArea = document.querySelector('textarea');
         await fetch(process.env.REACT_APP_PROXY+'/api/sendMessage/?' + new URLSearchParams({message: textArea.value, sender: pseudo}))
         socket.emit('message', {
-            text: textArea.value,
+            text: message,
             name: pseudo,
             id: `${socket.id}${Math.random()}`,
             socketID: socket.id,
         });
         textArea.value = ''
+        setMessage('')
         isTextAreaEmpty()
     }
     
@@ -60,20 +62,20 @@ function Chat({ socket }){
         const textArea = document.querySelector('textarea');
         const button = document.querySelector('button');
         if(textArea.value === '')
-            {
-                button.setAttribute('disabled','')
-                socket.emit('isnotWriting', {
-                    pseudo: pseudo,
-                    socketID: socket.id,
-                })
-            }else{
-                button.removeAttribute('disabled')
-                button.addEventListener('click',sendMessage)
-                socket.emit('isWriting', {
-                    pseudo: pseudo,
-                    socketID: socket.id
-                })
-            }
+        {
+            setMessage('')
+            socket.emit('isnotWriting', {
+                pseudo: pseudo,
+                socketID: socket.id,
+            })
+        }else{
+            setMessage(textArea.value)
+            socket.emit('isWriting', {
+                pseudo: pseudo,
+                socketID: socket.id
+            })
+        }
+        return textArea.value === ''
     }
 
     const generateTypingMessage = () => {
@@ -168,7 +170,13 @@ function Chat({ socket }){
                     <label htmlFor='message'>Message</label>
                     <textarea name='message' onChange={isTextAreaEmpty} className='uk-width-1-1 uk-background-secondary' style={{height: '150px', resize: 'none'}}/>
                 </div>
-                <button className='uk-button uk-button-default' disabled>Send</button>
+                {
+                    message === '' 
+                        ?
+                            <button className='uk-button uk-button-default' disabled>Send</button>
+                        :
+                            <button className='uk-button uk-button-default' onClick={sendMessage}>Send</button>
+                }   
             </div>
         </div>
     )

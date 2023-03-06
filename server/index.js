@@ -68,7 +68,6 @@ io.on('connection', (socket) => {
     })
 
     socket.on('isWriting', (data) => {
-        console.log(`${data.pseudo} is writing`)
         let found = false;
         for(let i=0;i<usersWriting.length;i++){
             if(usersWriting[i].socketID == data.socketID){
@@ -76,8 +75,11 @@ io.on('connection', (socket) => {
                 break;
             }
         }
-        !found && usersWriting.push(data)
-        socket.broadcast.emit('userWriting', usersWriting)
+        if(!found){
+            console.log(`${data.pseudo} is writing`)
+            usersWriting.push(data)
+            socket.broadcast.emit('userWriting', usersWriting)
+        } 
     })
 
     socket.on('isnotWriting', (data) => {
